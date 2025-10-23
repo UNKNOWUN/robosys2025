@@ -1,4 +1,6 @@
 #!/usr/bin/python3
+# SPDX-FileCopyrightText: 2025 Toshiaki Kou <s24c1050qg@s.chiabakoudai.jp>
+
 import sys
 
 ans = 0.0
