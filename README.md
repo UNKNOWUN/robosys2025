@@ -2,7 +2,7 @@
 Repository for homework.
 
 #plusコマンド
-![test](https://github.com/toshiakiko/robosys2025/actions/workflows/test.yml/badge.svg)
+![test](https://github.com/UNKNOWN/robosys2025/actions/workflows/test.yml/badge.svg)
 
 標準入力から読み込んだ数字を足す
 
