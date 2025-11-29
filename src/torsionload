@@ -1,0 +1,88 @@
+#!/usr/bin/env python3
+# torsionload: 丸シャフトの許容ねじれ荷重（トルク）を計算するフィルタ
+#
+# 入力（stdin）:
+#   d_mm tau_allow_MPa
+#   （1行につき 1 ケース、空白区切り）
+#
+# 出力（stdout）:
+#   T_allow_Nm
+#
+# エラーは stderr に出力。
+
+import sys
+import math
+
+
+def compute_t_allow_nm(d_mm: float, tau_allow_mpa: float) -> float:
+    """
+    許容せん断応力 tau_allow[MPa] と直径 d[mm] から
+    許容トルク T_allow[Nm] を計算する。
+
+    式: T = (pi / 16) * tau_allow * d^3  [N·mm]
+        T[Nm] = T[N·mm] / 1000
+    """
+    # N·mm
+    t_nmm = (math.pi / 16.0) * tau_allow_mpa * (d_mm ** 3)
+    # N·m
+    return t_nmm / 1000.0
+
+
+def main() -> int:
+    exit_code = 0
+
+    for lineno, line in enumerate(sys.stdin, start=1):
+        s = line.strip()
+        if not s:
+            continue
+        if s.startswith("#"):
+            continue
+
+        parts = s.split()
+        if len(parts) != 2:
+            print(
+                f"torsionload: line {lineno}: expected 2 values (d_mm tau_allow_MPa), got {len(parts)}",
+                file=sys.stderr,
+            )
+            exit_code = 1
+            continue
+
+        d_str, tau_str = parts
+
+        try:
+            d_mm = float(d_str)
+            tau_allow_mpa = float(tau_str)
+        except ValueError:
+            print(
+                f"torsionload: line {lineno}: non-numeric value '{d_str} {tau_str}'",
+                file=sys.stderr,
+            )
+            exit_code = 1
+            continue
+
+        if d_mm <= 0:
+            print(
+                f"torsionload: line {lineno}: diameter must be > 0 (got {d_mm})",
+                file=sys.stderr,
+            )
+            exit_code = 1
+            continue
+
+        if tau_allow_mpa <= 0:
+            print(
+                f"torsionload: line {lineno}: tau_allow must be > 0 (got {tau_allow_mpa})",
+                file=sys.stderr,
+            )
+            exit_code = 1
+            continue
+
+        t_allow_nm = compute_t_allow_nm(d_mm, tau_allow_mpa)
+
+        # 結果だけを出力（小数はデフォルト表記）
+        sys.stdout.write(f"{t_allow_nm}\n")
+
+    return exit_code
+
+
+if __name__ == "__main__":
+    sys.exit(main())

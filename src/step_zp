@@ -1,0 +1,222 @@
+#!/usr/bin/env python3
+"""
+step_zp: STEPファイルの断面から極二次モーメントJpと極断面係数Zpを求めるコマンド（簡易版）
+
+前提:
+  - モデルは1つのSOLIDからなるビーム/シャフト形状
+  - 軸はグローバルZ方向
+  - Z方向中央での断面を評価
+  - 単位は mm 想定（→ 出力のJpは mm^4, Zpは mm^3）
+
+使い方:
+  ./step_zp model.step
+
+出力:
+  J_p(mm^4)  Z_p(mm^3)  r_max(mm)
+"""
+
+import sys
+from pathlib import Path
+from math import sqrt
+
+from OCC.Core.STEPControl import STEPControl_Reader
+from OCC.Core.IFSelect import IFSelect_RetDone
+from OCC.Core.Bnd import Bnd_Box
+from OCC.Core.BRepBndLib import brepbndlib
+from OCC.Core.gp import gp_Pnt, gp_Dir, gp_Pln
+from OCC.Core.BRepAlgoAPI import BRepAlgoAPI_Section
+from OCC.Core.TopExp import TopExp_Explorer
+from OCC.Core.TopAbs import TopAbs_SOLID, TopAbs_EDGE
+from OCC.Core.TopoDS import topods
+from OCC.Core.BRepAdaptor import BRepAdaptor_Curve
+
+
+def read_step_solid(step_path: Path):
+    """STEPファイルを読み込み、最初のSOLIDを返す。"""
+    reader = STEPControl_Reader()
+    status = reader.ReadFile(str(step_path))
+    if status != IFSelect_RetDone:
+        raise RuntimeError(f"Failed to read STEP file: {step_path}")
+
+    if not reader.TransferRoots():
+        raise RuntimeError("STEP transfer failed")
+
+    shape = reader.OneShape()
+
+    exp = TopExp_Explorer(shape, TopAbs_SOLID)
+    if not exp.More():
+        raise RuntimeError("No SOLID found in STEP file")
+    solid = topods.Solid(exp.Current())
+    return solid
+
+
+def bounding_box_zmid(shape):
+    """shapeのバウンディングボックスからZ方向中央を返す。"""
+    box = Bnd_Box()
+    brepbndlib.Add(shape, box)
+    xmin, ymin, zmin, xmax, ymax, zmax = box.Get()
+    return 0.5 * (zmin + zmax)
+
+
+def section_edges_with_plane(solid, z_mid):
+    """solid を Z=z_mid の平面で切った断面のエッジをリストで返す。"""
+    plane = gp_Pln(gp_Pnt(0.0, 0.0, z_mid), gp_Dir(0.0, 0.0, 1.0))
+    sec = BRepAlgoAPI_Section(solid, plane, True)  # True: pcurvesも計算
+    sec.Build()
+    if not sec.IsDone():
+        raise RuntimeError("Section operation failed")
+
+    section_shape = sec.Shape()
+    edges = []
+    exp = TopExp_Explorer(section_shape, TopAbs_EDGE)
+    while exp.More():
+        edge = topods.Edge(exp.Current())
+        edges.append(edge)
+        exp.Next()
+
+    if not edges:
+        raise RuntimeError("No edges found in section (section may be empty)")
+
+    return edges
+
+
+def sample_edge_points(edge, n_samples=20):
+    """1本のエッジを等分サンプリングして (x,y) 点列を返す（Zは無視）。"""
+    curve = BRepAdaptor_Curve(edge)
+    u_first = curve.FirstParameter()
+    u_last = curve.LastParameter()
+
+    pts = []
+    for i in range(n_samples + 1):
+        u = u_first + (u_last - u_first) * (i / n_samples)
+        pnt = curve.Value(u)
+        x = pnt.X()
+        y = pnt.Y()
+        pts.append((x, y))
+    return pts
+
+
+def collect_section_polygon(edges, n_samples_per_edge=128):
+    """
+    全エッジからポリゴン点列を作る簡易版。
+
+    注意:
+      - トポロジ的に正しい順番で点が並ぶ保証はない。
+      - 今回は「だいたい円に近い断面」を想定し、全部の点をそのまま使う簡易版。
+    """
+    pts = []
+    for e in edges:
+        pts.extend(sample_edge_points(e, n_samples=n_samples_per_edge))
+
+    # ざっくり重複を間引く（厳密ではない）
+    unique = []
+    seen = set()
+    for x, y in pts:
+        key = (round(x, 6), round(y, 6))
+        if key in seen:
+            continue
+        seen.add(key)
+        unique.append((x, y))
+    return unique
+
+
+def polygon_area_centroid_inertia(pts):
+    """
+    多角形の面積A, 重心(cx, cy), x/y軸まわり二次モーメント Ix, Iy を返す。
+    座標が mm なら:
+      A  [mm^2]
+      Ix,Iy [mm^4]
+    """
+    if len(pts) < 3:
+        raise RuntimeError("Not enough points for polygon")
+
+    # 閉じる
+    if pts[0] != pts[-1]:
+        pts = pts + [pts[0]]
+
+    A = 0.0
+    Cx = 0.0
+    Cy = 0.0
+    Ixx = 0.0
+    Iyy = 0.0
+
+    for i in range(len(pts) - 1):
+        x0, y0 = pts[i]
+        x1, y1 = pts[i + 1]
+        cross = x0 * y1 - x1 * y0
+        A += cross
+        Cx += (x0 + x1) * cross
+        Cy += (y0 + y1) * cross
+        Ixx += (y0**2 + y0 * y1 + y1**2) * cross
+        Iyy += (x0**2 + x0 * x1 + x1**2) * cross
+
+    A *= 0.5
+    if abs(A) < 1e-9:
+        raise RuntimeError("Polygon area is too small or zero")
+
+    Cx /= (6.0 * A)
+    Cy /= (6.0 * A)
+
+    # 原点まわり → 重心まわりへ（並進の定理）
+    Ixx = Ixx / 12.0 - A * Cy**2
+    Iyy = Iyy / 12.0 - A * Cx**2
+
+    return abs(A), Cx, Cy, abs(Ixx), abs(Iyy)
+
+
+def compute_polar_props(pts):
+    """
+    ポリゴン点列から極二次モーメントJpと極断面係数Zpを計算する。
+    """
+    A, cx, cy, Ixx, Iyy = polygon_area_centroid_inertia(pts)
+    Jp = Ixx + Iyy  # 極二次モーメント（重心まわり）
+
+    # r_max: 全点の中で最も外側の距離（原点を回転中心とみなす簡易版）
+    r_max = 0.0
+    for x, y in pts:
+        r = sqrt(x**2 + y**2)
+        if r > r_max:
+            r_max = r
+
+    if r_max <= 0:
+        raise RuntimeError("r_max is zero or negative")
+
+    Zp = Jp / r_max
+    return Jp, Zp, r_max
+
+
+def main(argv=None) -> int:
+    if argv is None:
+        argv = sys.argv
+
+    if len(argv) != 2:
+        print(f"usage: {Path(argv[0]).name} model.step", file=sys.stderr)
+        return 1
+
+    step_path = Path(argv[1])
+    if not step_path.is_file():
+        print(f"step_zp: file not found: {step_path}", file=sys.stderr)
+        return 1
+
+    try:
+        solid = read_step_solid(step_path)
+        z_mid = bounding_box_zmid(solid)
+        edges = section_edges_with_plane(solid, z_mid)
+        pts = collect_section_polygon(edges, n_samples_per_edge=16)
+
+        if len(pts) < 3:
+            raise RuntimeError("Not enough points in section polygon")
+
+        Jp, Zp, rmax = compute_polar_props(pts)
+
+    except Exception as e:
+        print(f"step_zp: error: {e}", file=sys.stderr)
+        return 1
+
+    # 単位: Jp[mm^4], Zp[mm^3], rmax[mm]
+    print(f"{Jp} {Zp} {rmax}")
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

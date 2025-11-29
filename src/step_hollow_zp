@@ -1,0 +1,172 @@
+#!/usr/bin/env python3
+"""
+step_hollow_zp: STEPファイルから中空丸軸の Do, Di, Jp, Zp を求めるコマンド（専用版）
+
+前提:
+  - モデルはZ軸方向に伸びた中空丸シャフト
+  - 断面は同心円のリング（外径一定・内径一定）
+  - 単位は mm 想定
+
+使い方:
+  ./step_hollow_zp model.step
+
+出力（標準出力）:
+  Do Di Jp Zp
+    Do : 外径 [mm]
+    Di : 内径 [mm]
+    Jp : 極二次モーメント [mm^4]
+    Zp : 極断面係数 [mm^3]
+
+エラーやメッセージは標準エラー出力へ。
+"""
+
+import sys
+from pathlib import Path
+from math import sqrt, pi
+
+from OCC.Core.STEPControl import STEPControl_Reader
+from OCC.Core.IFSelect import IFSelect_RetDone
+from OCC.Core.Bnd import Bnd_Box
+from OCC.Core.BRepBndLib import brepbndlib
+from OCC.Core.gp import gp_Pnt, gp_Dir, gp_Pln
+from OCC.Core.BRepAlgoAPI import BRepAlgoAPI_Section
+from OCC.Core.TopExp import TopExp_Explorer
+from OCC.Core.TopAbs import TopAbs_SOLID, TopAbs_EDGE
+from OCC.Core.TopoDS import topods
+from OCC.Core.BRepAdaptor import BRepAdaptor_Curve
+
+
+def read_step_solid(step_path: Path):
+    """STEPファイルを読み込み、最初のSOLIDを返す。"""
+    reader = STEPControl_Reader()
+    status = reader.ReadFile(str(step_path))
+    if status != IFSelect_RetDone:
+        raise RuntimeError(f"failed to read STEP file: {step_path}")
+
+    if not reader.TransferRoots():
+        raise RuntimeError("STEP transfer failed")
+
+    shape = reader.OneShape()
+
+    exp = TopExp_Explorer(shape, TopAbs_SOLID)
+    if not exp.More():
+        raise RuntimeError("no SOLID found in STEP file")
+    solid = topods.Solid(exp.Current())
+    return solid
+
+
+def bounding_box_zmid(shape):
+    """shape のバウンディングボックスから Z 方向中央を求める。"""
+    box = Bnd_Box()
+    brepbndlib.Add(shape, box)
+    xmin, ymin, zmin, xmax, ymax, zmax = box.Get()
+    return 0.5 * (zmin + zmax)
+
+
+def section_edges_with_plane(solid, z_mid):
+    """solid を Z=z_mid の平面で切った断面のエッジをリストで返す。"""
+    plane = gp_Pln(gp_Pnt(0.0, 0.0, z_mid), gp_Dir(0.0, 0.0, 1.0))
+    sec = BRepAlgoAPI_Section(solid, plane, True)
+    sec.Build()
+    if not sec.IsDone():
+        raise RuntimeError("section operation failed")
+
+    section_shape = sec.Shape()
+    edges = []
+    exp = TopExp_Explorer(section_shape, TopAbs_EDGE)
+    while exp.More():
+        edge = topods.Edge(exp.Current())
+        edges.append(edge)
+        exp.Next()
+
+    if not edges:
+        raise RuntimeError("no edges found in section")
+    return edges
+
+
+def sample_edge_radii(edge, n_samples=32):
+    """1本のエッジを等分サンプリングして半径 r=√(x^2+y^2) のリストを返す。"""
+    curve = BRepAdaptor_Curve(edge)
+    u_first = curve.FirstParameter()
+    u_last = curve.LastParameter()
+
+    rs = []
+    for i in range(n_samples + 1):
+        u = u_first + (u_last - u_first) * (i / n_samples)
+        pnt = curve.Value(u)
+        x = pnt.X()
+        y = pnt.Y()
+        r = sqrt(x * x + y * y)
+        rs.append(r)
+    return rs
+
+
+def detect_hollow_radii(edges, n_samples_per_edge=64):
+    """
+    中空丸軸を仮定して、すべてのエッジ上の点から
+    最小半径 r_in と最大半径 r_out を求める。
+    """
+    all_r = []
+    for e in edges:
+        all_r.extend(sample_edge_radii(e, n_samples=n_samples_per_edge))
+
+    if not all_r:
+        raise RuntimeError("no radii sampled")
+
+    r_out = max(all_r)
+    r_in = min(all_r)
+
+    if r_in < 0.0:
+        raise RuntimeError("negative radius detected (unexpected)")
+    if r_out <= r_in:
+        raise RuntimeError(f"invalid radii: r_out={r_out}, r_in={r_in}")
+
+    return r_in, r_out
+
+
+def main(argv=None) -> int:
+    if argv is None:
+        argv = sys.argv
+
+    if len(argv) != 2:
+        print(f"usage: {Path(argv[0]).name} model.step", file=sys.stderr)
+        return 1
+
+    step_path = Path(argv[1])
+    if not step_path.is_file():
+        print(f"step_hollow_zp: file not found: {step_path}", file=sys.stderr)
+        return 1
+
+    try:
+        solid = read_step_solid(step_path)
+        z_mid = bounding_box_zmid(solid)
+        edges = section_edges_with_plane(solid, z_mid)
+
+        r_in, r_out = detect_hollow_radii(edges, n_samples_per_edge=64)
+
+        # 外径・内径 [mm]
+        Do = 2.0 * r_out
+        Di = 2.0 * r_in
+
+        if Di < 0.0:
+            raise RuntimeError("inner diameter is negative")
+        if Di >= Do:
+            raise RuntimeError(f"need Do > Di, got Do={Do}, Di={Di}")
+
+        # 中空円断面の極二次モーメント・極断面係数（丸軸理論式）
+        # Jp = π/32 * (Do^4 - Di^4)
+        # Zp = Jp / (Do/2) = π/16 * (Do^4 - Di^4) / Do
+        Jp = pi * (Do**4 - Di**4) / 32.0
+        Zp = pi * (Do**4 - Di**4) / (16.0 * Do)
+
+    except Exception as e:
+        print(f"step_hollow_zp: error: {e}", file=sys.stderr)
+        return 1
+
+    # 標準出力には値だけ（パイプ前提）
+    print(f"{Do} {Di} {Jp} {Zp}")
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

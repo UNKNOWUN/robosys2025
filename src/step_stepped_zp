@@ -1,0 +1,317 @@
+#!/usr/bin/env python3
+"""
+step_stepped_zp: 段付きシャフト用 Zp 最小断面探索コマンド
+
+STEP ファイルで与えられたシャフト形状について、
+Z 軸方向に 10 mm ごとに断面を切り出し、
+各断面の極断面係数 Zp を数値的に求める。
+その中で Zp が最小となる Z 位置と Zp を出力する。
+
+使い方:
+  ./step_stepped_zp model.step
+
+出力（標準出力）:
+  z_minZp Zp_min
+
+  z_minZp : Zp が最小の断面位置 [mm]（バウンディングボックスの Zmin を基準とした座標）
+  Zp_min  : その断面の極断面係数 [mm^3]
+
+前提:
+  - モデルは Z 軸方向に伸びた段付き丸シャフトを想定
+  - STEP ファイルの単位は mm を想定
+"""
+
+import sys
+from pathlib import Path
+from math import atan2, sqrt
+
+from math import pi as PI
+
+from OCC.Core.STEPControl import STEPControl_Reader
+from OCC.Core.IFSelect import IFSelect_RetDone
+from OCC.Core.Bnd import Bnd_Box
+from OCC.Core.BRepBndLib import brepbndlib
+from OCC.Core.gp import gp_Pnt, gp_Dir, gp_Pln
+from OCC.Core.BRepAlgoAPI import BRepAlgoAPI_Section
+from OCC.Core.TopExp import TopExp_Explorer
+from OCC.Core.TopAbs import TopAbs_SOLID, TopAbs_EDGE
+from OCC.Core.TopoDS import topods
+from OCC.Core.BRepAdaptor import BRepAdaptor_Curve
+
+
+# ------------------------------
+# STEP 読み込みと断面取得
+# ------------------------------
+
+def read_step_solid(step_path: Path):
+    """STEPファイルを読み込み、最初の SOLID を返す。"""
+    reader = STEPControl_Reader()
+    status = reader.ReadFile(str(step_path))
+    if status != IFSelect_RetDone:
+        raise RuntimeError(f"failed to read STEP file: {step_path}")
+
+    if not reader.TransferRoots():
+        raise RuntimeError("STEP transfer failed")
+
+    shape = reader.OneShape()
+    exp = TopExp_Explorer(shape, TopAbs_SOLID)
+    if not exp.More():
+        raise RuntimeError("no SOLID found in STEP file")
+
+    solid = topods.Solid(exp.Current())
+    return solid
+
+
+def z_range(shape):
+    """shape の Z 方向バウンディングボックス (zmin, zmax) を返す。"""
+    box = Bnd_Box()
+    brepbndlib.Add(shape, box)
+    xmin, ymin, zmin, xmax, ymax, zmax = box.Get()
+    return zmin, zmax
+
+
+def section_edges_with_plane(solid, z_pos):
+    """solid を Z=z_pos の平面で切った断面のエッジ一覧を返す。"""
+    plane = gp_Pln(gp_Pnt(0.0, 0.0, z_pos), gp_Dir(0.0, 0.0, 1.0))
+    sec = BRepAlgoAPI_Section(solid, plane, True)
+    sec.Build()
+    if not sec.IsDone():
+        raise RuntimeError("section operation failed")
+
+    section_shape = sec.Shape()
+    edges = []
+    exp = TopExp_Explorer(section_shape, TopAbs_EDGE)
+    while exp.More():
+        edge = topods.Edge(exp.Current())
+        edges.append(edge)
+        exp.Next()
+
+    if not edges:
+        raise RuntimeError("no edges found in section")
+    return edges
+
+
+# ------------------------------
+# 断面ポリゴン化＆断面特性計算
+# ------------------------------
+
+def sample_edge_points(edge, n_samples=32):
+    """1本のエッジ上を等間隔サンプリングし、(x, y) の点列を返す。"""
+    curve = BRepAdaptor_Curve(edge)
+    u_first = curve.FirstParameter()
+    u_last = curve.LastParameter()
+
+    pts = []
+    for i in range(n_samples + 1):
+        u = u_first + (u_last - u_first) * (i / n_samples)
+        pnt = curve.Value(u)
+        pts.append((pnt.X(), pnt.Y()))
+    return pts
+
+
+def collect_section_polygon(edges, n_samples_per_edge=64):
+    """
+    断面のエッジ群からサンプリング点を集め、
+    角度順に並べたポリゴン頂点列を返す。
+    """
+    raw_pts = []
+    for e in edges:
+        raw_pts.extend(sample_edge_points(e, n_samples=n_samples_per_edge))
+
+    if not raw_pts:
+        raise RuntimeError("no points sampled on section")
+
+    # とりあえずの中心（単純平均）
+    cx = sum(x for x, _ in raw_pts) / len(raw_pts)
+    cy = sum(y for _, y in raw_pts) / len(raw_pts)
+
+    # 角度でソート
+    def angle(p):
+        return atan2(p[1] - cy, p[0] - cx)
+
+    raw_pts.sort(key=angle)
+
+    # 近接点をマージして重複を削る
+    cleaned = []
+    eps2 = 1.0e-6  # (mm^2)
+    for p in raw_pts:
+        if not cleaned:
+            cleaned.append(p)
+        else:
+            dx = p[0] - cleaned[-1][0]
+            dy = p[1] - cleaned[-1][1]
+            if dx * dx + dy * dy > eps2:
+                cleaned.append(p)
+
+    if len(cleaned) < 3:
+        raise RuntimeError("section polygon has less than 3 vertices")
+
+    return cleaned
+
+
+def polygon_section_properties(points):
+    """
+    ポリゴン頂点列 (x_i, y_i) から、
+    面積 A、重心 (cx, cy)、重心まわりの Ix, Iy を求める。
+    ここでは、標準的な多角形の式を用いる。
+    """
+    n = len(points)
+    if n < 3:
+        raise RuntimeError("need at least 3 points for polygon")
+
+    # 閉多角形として扱うため最後に最初の点を付ける
+    pts = points + [points[0]]
+
+    # 符号付き面積と重心座標の分子
+    A2 = 0.0   # 2A
+    Cx_num = 0.0
+    Cy_num = 0.0
+    Ix0 = 0.0  # 原点まわりの Ix
+    Iy0 = 0.0  # 原点まわりの Iy
+
+    for i in range(n):
+        x0, y0 = pts[i]
+        x1, y1 = pts[i + 1]
+        cross = x0 * y1 - x1 * y0
+
+        A2 += cross
+        Cx_num += (x0 + x1) * cross
+        Cy_num += (y0 + y1) * cross
+
+        Iy0 += (x0 * x0 + x0 * x1 + x1 * x1) * cross / 12.0
+        Ix0 += (y0 * y0 + y0 * y1 + y1 * y1) * cross / 12.0
+
+    A = A2 / 2.0
+    if abs(A) < 1.0e-9:
+        raise RuntimeError("polygon area is too small")
+
+    cx = Cx_num / (3.0 * A2)
+    cy = Cy_num / (3.0 * A2)
+
+    # 重心まわりへ平行軸の定理で移行
+    Ix = Ix0 - A * cy * cy
+    Iy = Iy0 - A * cx * cx
+
+    return abs(A), cx, cy, Ix, Iy
+
+
+def compute_Jp_Zp(points):
+    """
+    ポリゴン断面から極二次モーメント Jp と極断面係数 Zp を求める。
+    """
+    A, cx, cy, Ix, Iy = polygon_section_properties(points)
+    Jp = Ix + Iy
+
+    # 重心からの最大距離 r_max
+    r_max = 0.0
+    for x, y in points:
+        dx = x - cx
+        dy = y - cy
+        r = sqrt(dx * dx + dy * dy)
+        if r > r_max:
+            r_max = r
+
+    if r_max <= 0.0:
+        raise RuntimeError("invalid r_max")
+
+    Zp = Jp / r_max
+
+    return Jp, Zp, r_max, (cx, cy)
+
+
+# ------------------------------
+# メイン処理
+# ------------------------------
+
+def main(argv=None) -> int:
+    if argv is None:
+        argv = sys.argv
+
+    if len(argv) != 2:
+        print(f"usage: {Path(argv[0]).name} model.step", file=sys.stderr)
+        return 1
+
+    step_path = Path(argv[1])
+    if not step_path.is_file():
+        print(f"step_stepped_zp: file not found: {step_path}", file=sys.stderr)
+        return 1
+
+    try:
+        solid = read_step_solid(step_path)
+        zmin, zmax = z_range(solid)
+        length = zmax - zmin
+        if length <= 0.0:
+            raise RuntimeError(f"invalid Z range: zmin={zmin}, zmax={zmax}")
+
+        # 10 mm ごとにスライスする。
+        dz = 10.0
+
+        z_positions = []
+
+        if length <= dz:
+            # 短いシャフトの場合は中央だけを見る
+            z_positions = [0.5 * (zmin + zmax)]
+        else:
+            # zmin から dz ごとに進める
+            z = zmin
+            # 端ギリギリで面が取れないことがあるので、少し内側にシフトしてもよいが、
+            # ここでは「取れなければスキップ」方針にする
+            while z <= zmax + 1.0e-6:
+                z_positions.append(z)
+                z += dz
+
+        if not z_positions:
+            raise RuntimeError("no slice positions generated")
+
+        best_Zp = None
+        best_z_list = []
+        tried = 0
+        used = 0
+
+        for z in z_positions:
+            tried += 1
+            try:
+                edges = section_edges_with_plane(solid, z)
+                poly = collect_section_polygon(edges, n_samples_per_edge=64)
+                _, Zp, _, _ = compute_Jp_Zp(poly)
+            except Exception:
+                # この断面がうまく取れなかったらスキップ
+                continue
+
+            used += 1
+            if best_Zp is None:
+                best_Zp = Zp
+                best_z_list = [z]
+            else:
+                # 相対誤差 1e-6 で「ほぼ同じ Zp」とみなす
+                tol = max(1.0e-6, abs(best_Zp) * 1.0e-6)
+                if Zp < best_Zp - tol:
+                    # もっと小さい Zp が見つかった
+                    best_Zp = Zp
+                    best_z_list = [z]
+                elif abs(Zp - best_Zp) <= tol:
+                    # ほぼ同じ Zp → 同じ「弱い区間」とみなしてリストに追加
+                    best_z_list.append(z)
+
+        if best_Zp is None or not best_z_list:
+            raise RuntimeError(
+                f"no valid sections found along Z (tried={tried}, used=0)"
+            )
+
+        # 一番弱い「区間」の代表位置として平均をとる
+        best_z = sum(best_z_list) / len(best_z_list)
+
+
+    except Exception as e:
+        print(f"step_stepped_zp: error: {e}", file=sys.stderr)
+        return 1
+
+    # Zmin を 0 としたときの位置に変換
+    z_rel = best_z - zmin
+
+    # 標準出力には「Zmin からの距離」と「最小Zp」の2つだけ
+    print(f"{z_rel} {best_Zp}")
+    return 0
+
+if __name__ == "__main__":
+    raise SystemExit(main())

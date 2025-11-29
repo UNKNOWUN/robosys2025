@@ -1,0 +1,38 @@
+name: robosys2025 test
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      # conda-forge から occt + pythonocc-core を入れる
+      - name: Setup Miniconda (conda-forge)
+        uses: conda-incubator/setup-miniconda@v3
+        with:
+          activate-environment: occenv
+          auto-activate-base: false
+          python-version: "3.11"
+          channels: conda-forge
+          channel-priority: strict
+          # ローカルで作った環境と同じように occt + pythonocc-core を入れる
+          packages: |
+            python=3.11
+            occt
+            pythonocc-core
+
+      - name: Show Python version
+        shell: bash -l {0}
+        run: python -c "import sys; print(sys.version)"
+
+      - name: Run tests
+        shell: bash -l {0}
+        run: |
+          chmod +x test.bash
+          ./test.bash

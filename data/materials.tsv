@@ -1,0 +1,53 @@
+#id	        name	                density_g_cm3	    alpha_1e6_per_C	    E_GPa	G_GPa	poisson Sy_MPa	Su_MPa	tau_allow_MPa	note
+ss400	    SS400_steel	            7.85	            11.7	            205	    78.8	0.30	245	    400	    98	            MISUMI+JIS代表値
+spcc	    SPCC_coldrolled	        7.85	            12.0	            210	    80.8	0.30	240	    350	    96	            JIS G3141 代表値
+sphc	    SPHC_hotrolled	        7.85	            12.0	            210	    80.8	0.30	225	    330	    90	            JIS G3131 代表値
+s15c	    S15C_steel	            7.85	            11.0	            205	    78.8	0.30	270	    450	    108	            MISUMI/JIS 機械構造用鋼
+s35c	    S35C_steel	            7.85	            11.0	            205	    78.8	0.30	335	    570	    134	            JIS S35C 代表値
+s45c	    S45C_steel	            7.85	            11.0	            205	    78.8	0.30	340	    570	    136	            MISUMI+JIS 代表値
+s55c	    S55C_steel	            7.85	            11.0	            205	    78.8	0.30	380	    700	    152	            JIS S55C 代表値
+scm415	    SCM415_chromoly	        7.85	            11.5	            210	    80.8	0.30	350	    650	    140	            JIS SCM415（調質無し）
+scm435	    SCM435_chromoly	        7.85	            11.5	            210	    80.8	0.30	540	    920	    216	            JIS SCM435（調質鋼）
+scm440	    SCM440_chromoly	        7.85	            11.5	            210	    80.8	0.30	655	    950	    262	            JIS SCM440（調質鋼）
+sncm439	    SNCM439_nickelchromoly	7.85	            12.3	            205	    78.8	0.30	930	    1080	372	            JIS SNCM439（調質）
+
+#id	        name	                density_g_cm3	    alpha_1e6_per_C	    E_GPa	G_GPa	poisson	Sy_MPa	Su_MPa	tau_allow_MPa	note
+sus304	    SUS304_austenitic	    7.93	            17.3	            193	    74.2	0.29	215	    505	    86	            MISUMI+JIS代表値
+sus304l	    SUS304L_lowC	        7.93	            17.3	            193	    74.2	0.29	170	    485	    68	            JIS 304L代表値
+sus316	    SUS316_austenitic	    7.98	            16.0	            193	    74.2	0.30	205	    515	    82	            MISUMI+JIS代表値
+sus316l	    SUS316L_lowC	        7.98	            16.0	            193	    74.2	0.30	170	    485	    68	            JIS 316L代表値
+sus430	    SUS430_ferritic	        7.70	            10.4	            200	    76.9	0.30	205	    450	    82	            JIS 430代表値
+sus303	    SUS303_freecut	        7.93	            17.3	            193	    74.2	0.29	240	    600	    96	            JIS 303代表値
+sus403	    SUS403_martensitic	    7.74	            9.9	                200	    76.9	0.30	245	    470	    98	            JIS 403代表値
+sus631	    SUS631_17-7PH	        7.80	            0.8	                200	    76.9	0.28	1035	1200	414	            JIS 17-7PH（析出硬化鋼）
+
+#id	        name	                density_g_cm3	    alpha_1e6_per_C	    E_GPa	G_GPa	poisson	Sy_MPa	Su_MPa	tau_allow_MPa	note
+a1050	    A1050_pureAl	        2.71	            23.8	            70	    26.9	0.33	25	    60	    8	            JIS A1050 O材
+a1100	    A1100_commerciallyPure	2.71	            23.6	            69	    26.5	0.33	35	    105	    12	            JIS A1100-H14 代表値
+a2017	    A2017_duralumin	        2.80	            23.2	            72	    27.2	0.33	215	    390	    70	            JIS 2017-T4 代表値
+a2024	    A2024_superDuralumin	2.78	            23.2	            73	    27.4	0.33	325	    470	    113	            JIS 2024-T4 代表値
+a3003	    A3003_AlMn	            2.73	            23.2	            69	    26.5	0.33	40	    110	    13	            JIS 3003-H14
+a5052	    A5052_AlMg	            2.68	            23.8	            70	    26.9	0.33	190	    260	    66	            MISUMI+JIS 5052-H34
+a5083	    A5083_marineAlMg	    2.66	            25.0	            72	    27.2	0.33	215	    315	    75	            JIS A5083-O
+a6061	    A6061_AlMgSi	        2.70	            23.4	            69	    26.5	0.33	275	    310	    96	            JIS 6061-T6
+a6063	    A6063_AlMgSi_extrusion	2.70	            23.6	            69	    26.5	0.33	150	    240	    50	            JIS 6063-T5/T6 平均
+a7075	    A7075_superAlloy	    2.81	            23.5	            72	    27.2	0.33	505	    570	    177	            JIS 7075-T6
+
+#id	        name	                density_g_cm3	    alpha_1e6_per_C	    E_GPa	G_GPa	poisson	Sy_MPa	Su_MPa	tau_allow_MPa	note
+c1100	    C1100_OxygenFreeCopper	8.93	            16.5	            110	    41.3	0.34	33	    220	    11	            MISUMI+JIS銅材代表
+c1020	    C1020_ToughPitchCopper	8.93	            16.7	            110	    41.3	0.34	40	    245	    13	            JIS C1020
+c2801	    C2801_CartridgeBrass	8.53	            20.5	            103	    38.4	0.34	110	    350	    38	            JIS C2801黄銅（70/30）
+c2680	    C2680_YellowBrass	    8.50	            20.5	            103	    38.4	0.34	125	    360	    44	            JIS C2680（65/35）
+c3604	    C3604_FreeCuttingBrass	8.50	            20.9	            97	    36.2	0.34	205	    360	    82	            JIS C3604 快削黄銅
+c1720	    C1720_BerylliumCopper	8.25	            17.0	            128	    47.8	0.34	1100	1250	440	            ベリリウム銅・析出硬化
+
+#id	        name	                density_g_cm3	alpha_1e6_per_C	        E_GPa	G_GPa	poisson	Sy_MPa	Su_MPa	tau_allow_MPa	note
+tp340	    PureTitanium_Grade2 	4.51	        8.6	                    105	    40.4	0.30	275	    345	    110	            JIS TP340（純Ti Grade2）
+ti64	    Ti6Al4V_Alloy	        4.43	        8.9	                    113	    43.5    0.30	880	    950	    352	            JIS Ti-6Al-4V（64Ti）
+
+#id	        name	                density_g_cm3	alpha_1e6_per_C	        E_GPa	G_GPa	poisson	Sy_MPa	Su_MPa	tau_allow_MPa	note
+fc200	    FC200_grayCastIron	    7.20	        10.5	                110	    45.8	0.20	130	    200	    52	            JIS FC200（ねずみ鋳鉄）
+fc250	    FC250_grayCastIron	    7.20	        10.5	                120	    50.0	0.20	160	    250	    64	            JIS FC250（ねずみ鋳鉄）
+fcd400	    FCD400_ductileCastIron	7.10	        11.0	                170	    65.4	0.30	250	    400	    100	            JIS FCD400（球状黒鉛鋳鉄）
+fcd450	    FCD450_ductileCastIron	7.10	        11.0	                170	    65.4	0.30	310	    450	    124	            JIS FCD450（球状黒鉛鋳鉄）
+ 
