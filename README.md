@@ -216,6 +216,6 @@ Python 3.8〜3.12 の自動テストに使用。
 
 * Robosys2025（ロボットシステム学）講義資料
 標準入出力、UNIX コマンド設計、GitHub 運用の基礎として利用。
-    ryuichiueda/slides_marp/robosys2025
+    [ryuichiueda/slides_marp/robosys2025](https://github.com/ryuichiueda/slides_marp/tree/master/robosys2025)
 
 関係する全てのソフトウェア・資料に感謝します。
