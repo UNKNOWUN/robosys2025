@@ -189,12 +189,33 @@ OCCT の "LGPL + Exception" は非常に緩やかで、
 
 ## ライセンス
 
-本ソフトウェアは **BSD 3-Clause License** のもとで公開されています。
+本ソフトウェアは 3条項BSDライセンス のもとで公開されています。
 詳細は [LICENSE](./LICENSE) を参照してください。
+
+© 2025 
 
 ---
 
 ## 謝辞
 
 本リポジトリは「ロボットシステム学（robosys2025）」課題として作成しました。
-授業の資料およびテスト環境に感謝します。
+本プロジェクトでは以下の技術・資料を利用しました。
+
+* pythonocc-core / Open Cascade Technology (OCCT)
+STEP 形状の読み込み・断面抽出に使用。
+
+* GitHub Actions
+Python 3.8〜3.12 の自動テストに使用。
+
+* MISUMI 材質データ
+材料物性値の参照に使用。
+
+* NMRI 機械設計資料
+ねじり荷重の基礎式を参照。
+    https://www.nmri.go.jp/archives/eng/khirata/design/ch05/ch05_01.html
+
+* Robosys2025（ロボットシステム学）講義資料
+標準入出力、UNIX コマンド設計、GitHub 運用の基礎として利用。
+    ryuichiueda/slides_marp/robosys2025
+
+関係する全てのソフトウェア・資料に感謝します。
