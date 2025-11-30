@@ -96,7 +96,7 @@ def sample_edge_points(edge, n_samples=20):
     return pts
 
 
-def collect_section_polygon(edges, n_samples_per_edge=128):
+def collect_section_polygon(edges, n_samples_per_edge=64):
     """
     全エッジからポリゴン点列を作る簡易版。
 
