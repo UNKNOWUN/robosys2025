@@ -1,4 +1,4 @@
-name: robosys2025 test
+name: robosys2025 tests
 
 on:
   push:
@@ -12,24 +12,23 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      # conda-forge から occt + pythonocc-core を入れる
-      - name: Setup Miniconda (conda-forge)
+      # conda（Mambaforge）を入れて、occenv 環境を作る
+      - name: Set up Conda (Mambaforge)
         uses: conda-incubator/setup-miniconda@v3
         with:
           activate-environment: occenv
-          auto-activate-base: false
           python-version: "3.11"
           channels: conda-forge
           channel-priority: strict
-          # ローカルで作った環境と同じように occt + pythonocc-core を入れる
-          packages: |
-            python=3.11
-            occt
-            pythonocc-core
+          auto-update-conda: false
+          miniforge-variant: Mambaforge
+          miniforge-version: latest
+          use-mamba: true
 
-      - name: Show Python version
+      - name: Install dependencies (occt + pythonocc-core)
         shell: bash -l {0}
-        run: python -c "import sys; print(sys.version)"
+        run: |
+          mamba install -y occt pythonocc-core
 
       - name: Run tests
         shell: bash -l {0}
