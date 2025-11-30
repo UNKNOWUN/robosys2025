@@ -12,7 +12,7 @@ STEP ファイルから丸シャフト（中実・中空・段付き）の **極
 
 ---
 
-## 📌 目次
+## 目次
 
 * [概要](#概要)
 * [構成](#構成)
@@ -41,7 +41,7 @@ STEP ファイルから丸シャフト（中実・中空・段付き）の **極
 
 ---
 
-## 📁 構成
+## 構成
 
 ```text
 obosys2025/
@@ -61,7 +61,7 @@ obosys2025/
 
 ---
 
-## 🧰 前提環境（Requirements）
+## 前提環境
 
 本プロジェクトでは STEP 形式の 3D モデルを扱うため、`pythonocc-core` と `Open Cascade Technology (OCCT)` を使用します。
 そのため、以下の環境が必要です。
@@ -155,7 +155,7 @@ echo "20 100" | ./src/torsionload
 
 ---
 
-## 📚 参考文献
+## 参考文献
 
 * ねじり荷重計算
   [https://www.nmri.go.jp/archives/eng/khirata/design/ch05/ch05_01.html](https://www.nmri.go.jp/archives/eng/khirata/design/ch05/ch05_01.html)
@@ -166,7 +166,7 @@ echo "20 100" | ./src/torsionload
 
 ---
 
-## 📜 使用ライブラリのライセンスについて
+## 使用ライブラリのライセンスについて
 
 本プロジェクトは以下の外部ライブラリを使用しています。
 
@@ -187,7 +187,7 @@ OCCT の "LGPL + Exception" は非常に緩やかで、
 
 ---
 
-## License
+## ライセンス
 
 本ソフトウェアは **BSD 3-Clause License** のもとで公開されています。
 詳細は [LICENSE](./LICENSE) を参照してください。
