@@ -12,10 +12,11 @@ STEP ファイルから丸シャフト（中実・中空・段付き）の **極
 
 ---
 
-## 目次
+## 📌 目次
 
 * [概要](#概要)
 * [構成](#構成)
+* [前提環境（Requirements）](#前提環境requirements)
 * [インストール方法](#インストール方法)
 * [使い方](#使い方)
 
@@ -25,7 +26,9 @@ STEP ファイルから丸シャフト（中実・中空・段付き）の **極
   * [step_stepped_zp](#step_stepped_zp)
 * [計算アルゴリズム](#計算アルゴリズム)
 * [参考文献](#参考文献)
+* [使用ライブラリのライセンスについて](#使用ライブラリのライセンスについて)
 * [License](#license)
+* [謝辞](#謝辞)
 
 ---
 
@@ -38,10 +41,10 @@ STEP ファイルから丸シャフト（中実・中空・段付き）の **極
 
 ---
 
-## 構成
+## 📁 構成
 
 ```text
-robosys2025/
+obosys2025/
 ├── src/
 │   ├── torsionload          # ねじり荷重 T を計算
 │   ├── step_zp              # 中実シャフトの Jp, Zp, rmax
@@ -58,37 +61,38 @@ robosys2025/
 
 ---
 
-## インストール方法
+## 🧰 前提環境（Requirements）
 
-### 必要環境
+本プロジェクトでは STEP 形式の 3D モデルを扱うため、`pythonocc-core` と `Open Cascade Technology (OCCT)` を使用します。
+そのため、以下の環境が必要です。
 
-* Python **3.8 〜 3.12**
-* conda（Miniforge 系推奨）
-* `occt` / `pythonocc-core`（conda-forge）
+* Linux（Ubuntu 推奨）
+* Python **3.8 – 3.12**
+* conda（Miniforge / Mambaforge 推奨）
+* OCCT（conda-forge より自動インストール）
+* pythonocc-core（conda-forge より自動インストール）
 
-### セットアップ手順
+インストール例：
 
 ```bash
-# conda 環境の作成
 conda create -n occenv python=3.10
 conda activate occenv
-
-# 依存パッケージのインストール
 conda install -c conda-forge occt pythonocc-core
+```
 
+---
+
+## インストール方法
+
+```bash
 # リポジトリ取得
 git clone https://github.com/UNKNOWUN/robosys2025
 cd robosys2025
-```
 
-### テスト
-
-```bash
+# テスト
 chmod +x test.bash
 ./test.bash
 ```
-
-ローカルと GitHub Actions の両方で、Python 3.8〜3.12 の全バージョンでテストが通ることを確認しています。
 
 ---
 
@@ -96,8 +100,8 @@ chmod +x test.bash
 
 ### torsionload
 
-ねじり荷重 (T) [N·mm] を計算します。
-入力は「せん断応力 (\tau) [MPa], 半径 (r) [mm], 極二次モーメント (J_p) [mm^4]」。
+ねじり荷重 T [N·mm] を計算します。
+入力: せん断応力 τ, 半径 r, 極二次モーメント Jp
 
 ```bash
 echo "20 100" | ./src/torsionload
@@ -108,7 +112,7 @@ echo "20 100" | ./src/torsionload
 
 ### step_zp
 
-中実丸シャフトの (J_p), (Z_p), 最大距離 (r_{max}) を求めます。
+中実シャフトの Jp, Zp, 最大距離 rmax を求めます。
 
 ```bash
 ./src/step_zp input/shaft_d20_L100.step
@@ -119,7 +123,7 @@ echo "20 100" | ./src/torsionload
 
 ### step_hollow_zp
 
-中空シャフトの外径 (D_o)、内径 (D_i)、(J_p)、(Z_p) を求めます。
+中空シャフトの Do, Di, Jp, Zp を計算します。
 
 ```bash
 ./src/step_hollow_zp input/shaft_d20_L100_hole10.step
@@ -130,8 +134,7 @@ echo "20 100" | ./src/torsionload
 
 ### step_stepped_zp
 
-段付きシャフトを Z 軸方向に 10 mm ピッチでスライスし、
-もっとも (Z_p) が小さい断面（最弱点）の位置と値を出力します。
+段付きシャフトを 10mm ピッチでスライスし最弱点を探索します。
 
 ```bash
 ./src/step_stepped_zp input/shaft_stepped.step
@@ -142,47 +145,56 @@ echo "20 100" | ./src/torsionload
 
 ## 計算アルゴリズム
 
-* STEP 読み込み: `pythonocc-core` による B-Rep 形状のロード
-* 断面抽出: `BRepAlgoAPI_Section` で Z = const の平面と交差
-* 各エッジを 64 点でサンプリングし、2D ポリゴンとして再構成
-* 多角形公式から以下を算出
-
-  * 面積 (A)
-  * 重心 ((c_x, c_y))
-  * 重心まわりの二次モーメント (I_x, I_y)
-* 極二次モーメント
-
-  * (J_p = I_x + I_y)
-* 極断面係数
-
-  * (Z_p = J_p / r_{max}) （(r_{max}): 重心からの最大半径）
-* 段付きシャフトでは zmin〜zmax を 10 mm 刻みで探索し、
-  (Z_p) が最小となる位置を「弱い箇所」として採用
+* STEP 読み込み: pythonocc-core を使用
+* 断面抽出: BRepAlgoAPI_Section
+* エッジを 64 点サンプリング → ポリゴン化
+* 面積 A, 重心 (cx, cy), Ix, Iy を計算
+* Jp = Ix + Iy
+* Zp = Jp / rmax
+* 段付きシャフトは zmin→zmax を 10mm 刻みで探索
 
 ---
 
-## 参考文献
+## 📚 参考文献
 
 * ねじり荷重計算
-
-  * [https://www.nmri.go.jp/archives/eng/khirata/design/ch05/ch05_01.html](https://www.nmri.go.jp/archives/eng/khirata/design/ch05/ch05_01.html)
-* 材質データ（MISUMI）
-
-  * [https://jp.misumi-ec.com/](https://jp.misumi-ec.com/)
+  [https://www.nmri.go.jp/archives/eng/khirata/design/ch05/ch05_01.html](https://www.nmri.go.jp/archives/eng/khirata/design/ch05/ch05_01.html)
+* MISUMI 材質データ
+  [https://jp.misumi-ec.com/](https://jp.misumi-ec.com/)
 * pythonocc-core
+  [https://github.com/tpaviot/pythonocc-core](https://github.com/tpaviot/pythonocc-core)
 
-  * [https://github.com/tpaviot/pythonocc-core](https://github.com/tpaviot/pythonocc-core)
+---
+
+## 📜 使用ライブラリのライセンスについて
+
+本プロジェクトは以下の外部ライブラリを使用しています。
+
+### ● pythonocc-core
+
+* License: LGPL-2.1
+* Repository: [https://github.com/tpaviot/pythonocc-core](https://github.com/tpaviot/pythonocc-core)
+
+### ● Open Cascade Technology (OCCT)
+
+* License: LGPL-2.1 with Open Cascade exception
+* [https://www.opencascade.com/content/licensing](https://www.opencascade.com/content/licensing)
+
+OCCT の "LGPL + Exception" は非常に緩やかで、
+本プロジェクトのようにライブラリを動的利用する場合、
+**本プロジェクトを LGPL へ変更する義務はありません。**
+そのため本リポジトリは **BSD-3-Clause License** のままで問題ありません。
 
 ---
 
 ## License
 
-This software is released under the **BSD 3-Clause License**.
-See the [LICENSE](./LICENSE) file for details.
+本ソフトウェアは **BSD 3-Clause License** のもとで公開されています。
+詳細は [LICENSE](./LICENSE) を参照してください。
 
 ---
 
 ## 謝辞
 
-本リポジトリは「ロボットシステム学（robosys2025）」の課題として作成しました。
-授業で提供されたテスト環境と資料に感謝します。
+本リポジトリは「ロボットシステム学（robosys2025）」課題として作成しました。
+授業の資料およびテスト環境に感謝します。
