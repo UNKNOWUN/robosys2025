@@ -192,7 +192,7 @@ OCCT の "LGPL + Exception" は非常に緩やかで、
 本ソフトウェアは 3条項BSDライセンス のもとで公開されています。
 詳細は [LICENSE](./LICENSE) を参照してください。
 
-© 2025 
+© 2025 Toshiaki Kou
 
 ---
 
