@@ -36,35 +36,30 @@ name,M_Nmm,T_Nmm
 ```
 
 ## 出力
+計算結果は以下のように出力されます。
 
-結果は標準出力に CSV 形式（ヘッダなし）で出力されます。
+- `shaft` 出力列  
+  ケース名, 材料ID, 直径[mm], 曲げ応力[MPa], ねじりせん断応力[MPa], von Mises 応力[MPa], 許容応力[MPa], 安全率
 
-* `shaft` の出力形式
+- `shafth` 出力列  
+  ケース名, 材料ID, 外径[mm], 内径[mm], 曲げ応力[MPa], ねじりせん断応力[MPa], von Mises 応力[MPa], 許容応力[MPa], 安全率
 
-```
-name,material_id,d_mm,sigma_b_MPa,tau_MPa,sigma_vm_MPa,allow_MPa,safety_factor
-```
-
-* `shafth` の出力形式
-
-```
-name,material_id,do_mm,di_mm,sigma_b_MPa,tau_MPa,sigma_vm_MPa,allow_MPa,safety_factor
 ```
 
 ## テスト環境
 
-テストはシェルスクリプトで記述されており、Python を直接呼び出さずに実行します。
-
-```
-bash test/test.bash
-```
+python 3.8 ~ 3.12
 
 ## 謝辞
 
-本ソフトウェアは、大学のロボットシステム系講義の課題として作成しました。
+利用・参照したコード
+
+このパッケージのコードの一部は，下記のスライド（CC-BY-SA 4.0 by Ryuichi Ueda）のものを，本人の許可を得て自身の著作としたものです。
+
+ryuichiueda/slides_marp/robosys2025
 
 ## 著作権
 
-Copyright (c) 2025 Toshiaki Ko
+このソフトウェアパッケージは，3条項BSDライセンスの下，再頒布および使用が許可されます。
 
-License: BSD 3-Clause
+© 2025 Toshiaki Ko
