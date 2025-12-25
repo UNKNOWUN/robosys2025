@@ -40,9 +40,11 @@ name,M_Nmm,T_Nmm
 計算結果は標準出力に CSV 形式（ヘッダなし）で出力されます。
 
 * `shaft` 出力列
+
   ケース名, 材料ID, 直径[mm], 曲げ応力[MPa], ねじりせん断応力[MPa], von Mises 応力[MPa], 許容応力[MPa], 安全率
 
 * `shafth` 出力列
+
   ケース名, 材料ID, 外径[mm], 内径[mm], 曲げ応力[MPa], ねじりせん断応力[MPa], von Mises 応力[MPa], 許容応力[MPa], 安全率
 
 ## テスト環境
