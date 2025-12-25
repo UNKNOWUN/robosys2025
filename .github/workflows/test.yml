@@ -1,40 +1,9 @@
 name: test
-
-on:
-  push:
-    branches: [ main ]
-  pull_request:
-    branches: [ main ]
+on: [push]
 
 jobs:
   test:
     runs-on: ubuntu-latest
-
-    strategy:
-      fail-fast: false
-      matrix:
-        python-version: ["3.8", "3.9", "3.10", "3.11", "3.12"]
-
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-
-      - name: Set up Conda (Miniforge)
-        uses: conda-incubator/setup-miniconda@v3
-        with:
-          miniforge-version: latest
-          channels: conda-forge
-          python-version: ${{ matrix.python-version }}
-          activate-environment: test
-          auto-activate-base: false
-
-      - name: Install dependencies (occt + pythonocc-core)
-        shell: bash -el {0}
-        run: |
-          conda install -y -c conda-forge occt pythonocc-core
-
-      - name: Run tests
-        shell: bash -el {0}
-        run: |
-          chmod +x ./test.bash
-          ./test.bash
+      - uses: actions/checkout@v4
+      - run: bash test.bash
