@@ -49,7 +49,7 @@ name,M_Nmm,T_Nmm
 
 ## テスト環境
 
-* Python 3.8–3.12
+* Python 3.8–3.13
 
 ## 謝辞
 
