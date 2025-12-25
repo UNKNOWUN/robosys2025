@@ -1,0 +1,108 @@
+#!/usr/bin/env python3
+# SPDX-FileCopyrightText: 2025 Toshiaki Ko <s24c1050qg@s.chibakoudai.jp>
+
+import csv
+import math
+import os
+import sys
+
+
+def eprint(*args: object) -> None:
+    print(*args, file=sys.stderr)
+
+
+def load_materials_csv(path: str) -> dict:
+    mats = {}
+    with open(path, "r", encoding="utf-8", newline="") as f:
+        r = csv.DictReader(f)
+        required = {"id", "Sy_MPa", "Su_MPa", "tau_allow_MPa"}
+        if r.fieldnames is None or not required.issubset(set(r.fieldnames)):
+            raise ValueError("materials.csv must have columns: id,Sy_MPa,Su_MPa,tau_allow_MPa")
+
+        for ln, row in enumerate(r, start=2):
+            mid = (row.get("id") or "").strip()
+            if not mid:
+                continue
+            mats[mid] = row
+    if not mats:
+        raise ValueError("materials.csv has no rows")
+    return mats
+
+
+def main() -> int:
+    if len(sys.argv) != 3:
+        eprint("usage: shaft d_mm material_id  (cases: stdin CSV name,M_Nmm,T_Nmm)")
+        return 2
+
+    try:
+        d = float(sys.argv[1])
+    except ValueError:
+        eprint("error: d_mm must be a number")
+        return 2
+    if d <= 0:
+        eprint("error: d_mm must be > 0")
+        return 2
+
+    material_id = sys.argv[2]
+
+    here = os.path.dirname(os.path.abspath(__file__))
+    mat_path = os.path.join(here, "materials.csv")
+    try:
+        mats = load_materials_csv(mat_path)
+    except Exception as ex:
+        eprint(f"error: failed to read materials.csv: {ex}")
+        return 2
+
+    if material_id not in mats:
+        eprint(f"error: unknown material_id: {material_id}")
+        return 2
+
+    # allow = Sy_MPa を採用（簡単・標準的）
+    try:
+        allow = float(mats[material_id]["Sy_MPa"])
+    except Exception:
+        eprint(f"error: Sy_MPa is invalid for material_id: {material_id}")
+        return 2
+    if allow <= 0:
+        eprint(f"error: Sy_MPa must be > 0 for material_id: {material_id}")
+        return 2
+
+    denom = math.pi * (d ** 3)
+
+    w = csv.writer(sys.stdout, lineterminator="\n")
+   
+    r = csv.reader(sys.stdin)
+    ok = True
+    line_no = 0
+    for row in r:
+        line_no += 1
+        if not row:
+            continue
+        if row[0].lstrip().startswith("#"):
+            continue
+        if len(row) < 3:
+            eprint(f"error: line {line_no}: expected name,M_Nmm,T_Nmm")
+            ok = False
+            continue
+
+        name = row[0].strip()
+        try:
+            M = float(row[1])
+            T = float(row[2])
+        except ValueError:
+            eprint(f"error: line {line_no}: M_Nmm/T_Nmm must be numbers")
+            ok = False
+            continue
+
+        sigma_b = 32.0 * M / denom
+        tau = 16.0 * T / denom
+        sigma_vm = math.sqrt(sigma_b * sigma_b + 3.0 * tau * tau)
+        sf = (allow / sigma_vm) if sigma_vm > 0 else float("inf")
+
+        w.writerow([name, material_id, f"{d:.6g}", f"{sigma_b:.6g}", f"{tau:.6g}", f"{sigma_vm:.6g}", f"{allow:.6g}", f"{sf:.6g}"])
+
+    return 0 if ok else 2
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())
