@@ -36,27 +36,27 @@ name,M_Nmm,T_Nmm
 ```
 
 ## 出力
-計算結果は以下のように出力されます。
 
-- `shaft` 出力列  
+計算結果は標準出力に CSV 形式（ヘッダなし）で出力されます。
+
+* `shaft` 出力列
   ケース名, 材料ID, 直径[mm], 曲げ応力[MPa], ねじりせん断応力[MPa], von Mises 応力[MPa], 許容応力[MPa], 安全率
 
-- `shafth` 出力列  
+* `shafth` 出力列
   ケース名, 材料ID, 外径[mm], 内径[mm], 曲げ応力[MPa], ねじりせん断応力[MPa], von Mises 応力[MPa], 許容応力[MPa], 安全率
-
-```
 
 ## テスト環境
 
-python 3.8 ~ 3.12
+* Python 3.8–3.12
+* Linux (GitHub Actions)
 
 ## 謝辞
 
-- 利用・参照したコード
-  - 本ソフトウェアの一部は、下記の講義資料を参考にして作成しました。
-    - https://ryuichiueda.github.io/slides_marp/robosys2025/
+本ソフトウェアの一部は、下記の講義資料を参考にして作成しました。
+
+* [https://ryuichiueda.github.io/slides_marp/robosys2025/](https://ryuichiueda.github.io/slides_marp/robosys2025/)
 
 ## ライセンス
-- 本ソフトウェアは、3条項BSDライセンスの下で再頒布および使用が許可されます。
-- © 2025 Toshiaki Ko
 
+* 本ソフトウェアは、3条項BSDライセンスの下で再頒布および使用が許可されます。
+* © 2025 Toshiaki Ko
