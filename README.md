@@ -48,7 +48,6 @@ name,M_Nmm,T_Nmm
 ## テスト環境
 
 * Python 3.8–3.12
-* Linux (GitHub Actions)
 
 ## 謝辞
 
